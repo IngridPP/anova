@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANOVA Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstat/1.9.1/jstat.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=Karla:400,700&display=swap');
+        body { font-family: 'Karla', sans-serif; }
+        .bg-sidebar { background: #f3a4d2; }
+    </style>
+</head>
+<body class="bg-gray-100 flex">
+    <aside class="relative bg-sidebar h-screen w-64 hidden sm:block shadow-xl">
+        <div class="p-6">
+            <a href="index.html" class="text-white text-3xl font-semibold uppercase hover:text-gray-300">ANOVA</a>
+        </div>
+        <nav class="text-white text-base font-semibold pt-3">
+            <a href="index.html" class="flex items-center text-white py-4 pl-6">Ingresar datos</a>
+            <a href="blank.html" class="flex items-center text-white opacity-75 hover:opacity-100 py-4 pl-6">Interpretación</a>
+        </nav>
+    </aside>
+
+    <div class="w-full flex flex-col h-screen overflow-y-hidden">
+        <header class="w-full items-center bg-white py-2 px-6 hidden sm:flex">
+            <div class="w-1/2"></div>
+            <div class="relative w-1/2 flex justify-end "style="height: 50px;">
+                <a style="padding-top:10px ;" class=" overflow-hidden border-gray-400 hover:border-gray-300 focus:border-gray-300 focus:outline-none">
+                    Ingrid Yuliana Perez Rodriguez a367760
+                </a>
+                <br>
+                
+            </div>
+        </header>
+
+        <div class="w-full overflow-x-hidden border-t flex flex-col">
+            <main class="w-full flex-grow p-6">
+                <h1 class="text-3xl text-black pb-6">Ingresar Datos</h1>
+
+                <p class="mb-4">Introduce los datos que hay por grupo y cuantos grupos necesitas:</p>
+                <div class="mb-4">
+                    <label for="numRows" class="block">Datos por Grupo:</label>
+                    <input type="number" id="numRows" class="border rounded-md w-24 p-2" placeholder="Filas" min="1">
+                </div>
+                <div class="mb-4">
+                    <label for="numCols" class="block">Grupos:</label>
+                    <input type="number" id="numCols" class="border rounded-md w-24 p-2" placeholder="Columnas" min="1">
+                </div>
+                <button id="generateTable" class="bg-pink-200 text-white py-2 px-4 rounded-md">Generar Tabla</button>
+
+                <div id="dataTable" class="mt-6 overflow-auto bg-white p-4 rounded-lg shadow-lg hidden">
+                    <table class="min-w-full rounded-lg">
+                        <thead class="bg-pink-200 text-white" id="tableHead"></thead>
+                        <tbody class="text-gray-800" id="tableBody"></tbody>
+                    </table>
+                </div>
+
+                <button id="performANOVA"  style="background-color: #a7dbd8;" class="text-white py-2 px-4 rounded-md mt-4 hidden">Realizar ANOVA</button>
+                <br><button id="interpret" style="background-color: #9fb38f;"  class="text-white py-2 px-4 rounded-md mt-4 hidden">Interpretar</button>
+
+                <div id="anovaResult" class="mt-6 hidden bg-white p-4 rounded-lg shadow-lg">
+                    <h2 class="text-xl mb-2">Resultados del ANOVA</h2>
+                    <table class="min-w-full rounded-lg">
+                        <thead class="bg-blue-200 text-white">
+                            <tr>
+                                <th class="py-2 px-4">Fuente de Variación</th>
+                                <th class="py-2 px-4">Suma de Cuadrados</th>
+                                <th class="py-2 px-4">Grados de Libertad</th>
+                                <th class="py-2 px-4">Media Cuadrática</th>
+                                <th class="py-2 px-4">F</th>
+                                <th class="py-2 px-4">p-valor</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-700" id="resultOutput"></tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('generateTable').addEventListener('click', function() {
+            const numRows = parseInt(document.getElementById('numRows').value);
+            const numCols = parseInt(document.getElementById('numCols').value);
+            const tableHead = document.getElementById('tableHead');
+            const tableBody = document.getElementById('tableBody');
+
+            tableHead.innerHTML = '';
+            tableBody.innerHTML = '';
+
+            const headerRow = document.createElement('tr');
+            for (let i = 1; i <= numCols; i++) {
+                const th = document.createElement('th');
+                th.className = 'py-3 px-4 text-left';
+                th.textContent = `Grupo ${i}`;
+                headerRow.appendChild(th);
+            }
+            tableHead.appendChild(headerRow);
+
+            for (let i = 1; i <= numRows; i++) {
+                const row = document.createElement('tr');
+                for (let j = 1; j <= numCols; j++) {
+                    const td = document.createElement('td');
+                    td.className = 'py-3 px-4';
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.placeholder = `Fila ${i}, Col ${j}`;
+                    input.className = 'border rounded-md w-full p-1';
+                    td.appendChild(input);
+                    row.appendChild(td);
+                }
+                tableBody.appendChild(row);
+            }
+
+            document.getElementById('dataTable').classList.remove('hidden');
+            document.getElementById('performANOVA').classList.remove('hidden');
+        });
+
+        document.getElementById('performANOVA').addEventListener('click', function() {
+            const inputs = document.querySelectorAll('#tableBody tr');
+            const groups = [];
+            const numCols = inputs[0].children.length;
+
+            for (let j = 0; j < numCols; j++) {
+                const group = [];
+                for (let i = 0; i < inputs.length; i++) {
+                    const value = inputs[i].children[j].querySelector('input').value;
+                    if (value) group.push(parseFloat(value));
+                }
+                groups.push(group);
+            }
+
+            if (groups.some(group => group.length === 0)) {
+                alert('Todos los grupos deben tener al menos un dato.');
+                return;
+            }
+
+            const results = anova(groups);
+            displayResults(results);
+            const means = groups.map(group => group.reduce((a, b) => a + b, 0) / group.length);
+
+            localStorage.setItem('pValue', results.pValue);
+            localStorage.setItem('groupMeans', JSON.stringify(means));
+            document.getElementById('interpret').classList.remove('hidden');
+        });
+
+        function anova(groups) {
+            const k = groups.length;
+            const n = groups.reduce((acc, group) => acc + group.length, 0);
+            const means = groups.map(group => group.reduce((a, b) => a + b, 0) / group.length);
+            const grandMean = means.reduce((a, b) => a + b, 0) / k;
+
+            const SSbetween = groups.reduce((acc, group, i) => acc + group.length * Math.pow(means[i] - grandMean, 2), 0);
+            const SSwithin = groups.reduce((acc, group) => {
+                const groupSS = group.reduce((a, b) => a + Math.pow(b - means[groups.indexOf(group)], 2), 0);
+                return acc + groupSS;
+            }, 0);
+
+            const dfbetween = k - 1;
+            const dfwithin = n - k;
+
+            const MSbetween = SSbetween / dfbetween;
+            const MSwithin = SSwithin / dfwithin;
+
+            const F = MSbetween / MSwithin;
+
+            const pValue = 1 - jStat.centralF.cdf(F, dfbetween, dfwithin);
+
+            return { F, pValue, SSbetween, SSwithin, dfbetween, dfwithin };
+        }
+
+        function displayResults(results) {
+            const resultOutput = document.getElementById('resultOutput');
+            resultOutput.innerHTML = `
+                <tr>
+                    <td style="text-align: center;" class="py-2 px-4 items-center " >Entre Grupos</td>
+                    <td style="text-align: center;" class="py-2 px-4 items-center ">${results.SSbetween.toFixed(2)}</td>
+                    <td style="text-align: center;" class="py-2 px-4">${results.dfbetween}</td>
+                    <td style="text-align: center;" class="py-2 px-4">${(results.SSbetween / results.dfbetween).toFixed(2)}</td>
+                    <td style="text-align: center;" class="py-2 px-4">${results.F.toFixed(2)}</td>
+                    <td style="text-align: center;" class="py-2 px-4">${results.pValue.toFixed(4)}</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;" class="py-2 px-4">Dentro de Grupos</td>
+                    <td style="text-align: center;" class="py-2 px-4">${results.SSwithin.toFixed(2)}</td>
+                    <td style="text-align: center;" class="py-2 px-4">${results.dfwithin}</td>
+                    <td style="text-align: center;" class="py-2 px-4">${(results.SSwithin / results.dfwithin).toFixed(2)}</td>
+                    <td style="text-align: center;" class="py-2 px-4"></td>
+                    <td style="text-align: center;" class="py-2 px-4"></td>
+                </tr>
+            `;
+            document.getElementById('anovaResult').classList.remove('hidden');
+        }
+
+        document.getElementById('interpret').addEventListener('click', function() {
+            window.location.href = 'blank.html';
+        });
+    </script>
+</body>
+</html>

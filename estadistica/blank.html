@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interpretación de ANOVA</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=Karla:400,700&display=swap');
+        body { font-family: 'Karla', sans-serif; }
+        .bg-sidebar { background: #f3a4d2; }
+    </style>
+</head>
+<body class="bg-gray-100 flex">
+    <aside class="relative bg-sidebar h-screen w-64 hidden sm:block shadow-xl">
+        <div class="p-6">
+            <a href="index.html" class="text-white text-3xl font-semibold uppercase hover:text-gray-300">ANOVA</a>
+        </div>
+        <nav class="text-white text-base font-semibold pt-3">
+            <a href="index.html" class="flex items-center text-white py-4 pl-6">Ingresar datos</a>
+            <a href="blank.html" class="flex items-center text-white opacity-75 hover:opacity-100 py-4 pl-6">Interpretación</a>
+        </nav>
+    </aside>
+
+        <div class="w-full flex flex-col h-screen overflow-y-hidden">
+        <header class="w-full items-center bg-white py-2 px-6 hidden sm:flex">
+            <div class="w-1/2"></div>
+            <div class="relative w-1/2 flex justify-end "style="height: 50px;">
+                <a style="padding-top:10px ;" class=" overflow-hidden border-gray-400 hover:border-gray-300 focus:border-gray-300 focus:outline-none">
+                    Ingrid Yuliana Perez Rodriguez a367760
+                </a>
+                <br>
+                
+            </div>
+        </header>
+
+        <div class="w-full overflow-x-hidden border-t flex flex-col">
+            <main class="w-full flex-grow p-6">
+                <h1 class="text-3xl text-black pb-6">Interpretación de ANOVA</h1>
+
+                <div id="interpretation" class="bg-white p-4 rounded-lg shadow-lg">
+                    <h2 class="text-xl mb-2">Resultados y Comparación</h2>
+                    <label for="alpha" class="block mb-2">¿Qué alfa tienes?</label>
+                    <input type="number" id="alpha" class="border rounded-md w-24 p-2 mb-4" placeholder="Alfa" value="0.05" step="0.01" min="0.01" max="1">
+                    
+                    <label for="desiredMean" class="block mb-2">¿Buscas que la media sea más baja o más alta?</label>
+                    <select id="desiredMean" class="border rounded-md w-40 p-2 mb-4">
+                        <option value="alta">Más Alta</option>
+                        <option value="baja">Más Baja</option>
+                    </select>
+
+                    <button id="calculate"  style="background-color: #9fb38f;" class=" text-white py-2 px-4 rounded-md">Calcular Interpretación</button>
+                    <p id="hypothesis" class="mt-4"></p>
+                    <canvas id="myChart" class="mt-6"></canvas>
+                    <p id="recommendation" class="mt-4"></p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Obtener los valores de p y medias desde localStorage
+        const pValue = parseFloat(localStorage.getItem('pValue'));
+        const means = JSON.parse(localStorage.getItem('groupMeans'));
+
+        const alphaInput = document.getElementById('alpha');
+        const desiredMeanSelect = document.getElementById('desiredMean');
+        const hypothesis = document.getElementById('hypothesis');
+        const recommendation = document.getElementById('recommendation');
+
+        // Función para plantear hipótesis y decidir si se rechaza H0
+        function interpretResults() {
+            const alpha = parseFloat(alphaInput.value);
+            const confidenceLevel = (1 - alpha) * 100;
+            const rejectH0 = pValue < alpha;
+
+            hypothesis.innerHTML = `
+                Hipótesis Nula (H0): Todas las medias son iguales.<br>
+                Hipótesis Alternativa (H1): No todas las medias son iguales.<br>
+                p-valor: ${pValue.toFixed(4)}<br>
+                ${rejectH0 ? 'Se rechaza H0: los grupos no son iguales' : 'No se rechaza H0: los grupos son iguales'}<br>
+                Nivel de confianza: ${confidenceLevel.toFixed(2)}%
+            `;
+
+            // Ordenar grupos por media
+            const sortedGroups = means
+                .map((mean, index) => ({ index: index + 1, mean }))
+                .sort((a, b) => b.mean - a.mean);
+
+            // Decidir si se recomienda baja o alta
+            const isLookingForHigher = desiredMeanSelect.value === "alta";
+
+            if (rejectH0) {
+                if (isLookingForHigher) {
+                    recommendation.innerHTML = `Se recomienda elegir los grupos en el siguiente orden (mejor a peor):<br>${sortedGroups.map(group => `Grupo ${group.index} (media: ${group.mean.toFixed(2)})`).join('<br>')}`;
+                } else {
+                    recommendation.innerHTML = `Se recomienda elegir los grupos en el siguiente orden (mejor a peor):<br>${sortedGroups.reverse().map(group => `Grupo ${group.index} (media: ${group.mean.toFixed(2)})`).join('<br>')}`;
+                }
+            } else {
+                recommendation.innerHTML = `No se recomienda un grupo específico, ya que no hay diferencias significativas.`;
+            }
+        }
+
+        // Graficar
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: means.map((_, index) => `Grupo ${index + 1}`),
+                datasets: [{
+                    label: 'Media por Grupo',
+                    data: means,
+                    backgroundColor: 'rgba(183, 203, 191)',
+                    borderColor: 'rgba(183, 203, 191)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        document.getElementById('calculate').addEventListener('click', interpretResults);
+    </script>
+</body>
+</html>
